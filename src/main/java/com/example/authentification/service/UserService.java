@@ -1,6 +1,7 @@
 package com.example.authentification.service;
 
 
+import com.example.authentification.entity.Role;
 import com.example.authentification.entity.User;
 import com.example.authentification.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -31,10 +32,8 @@ public class UserService {
 
         User user = new User();
         user.setEmail(email);
-
-        // 🔐 Encapsulation : mot de passe TOUJOURS encodé
         user.setPassword(passwordEncoder.encode(rawPassword));
-        user.setRole("USER");
+        user.setRole(Role.ETUDIANT);
 
         return userRepository.save(user);
     }
@@ -61,15 +60,14 @@ public class UserService {
      */
     public void promoteToAdmin(Long userId, User currentUser) {
 
-        // 🔐 encapsulation + sécurité
-        if (!"ADMIN".equals(currentUser.getRole())) {
+        if (currentUser.getRole() != Role.ADMIN) {
             throw new RuntimeException("Accès refusé");
         }
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Utilisateur introuvable"));
 
-        user.setRole("ADMIN");
+        user.setRole(Role.ADMIN);
         userRepository.save(user);
     }
 }

@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.core.Ordered;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -23,6 +24,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)  // Active @PreAuthorize et @PostAuthorize
 public class SecurityConfig {
 
     @Bean
@@ -37,6 +39,8 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/statistics/**").permitAll()  // Statistiques publiques pour test
+                        .requestMatchers("/api/filieres/**").permitAll()    // Filières publiques
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore( jwtFilter, UsernamePasswordAuthenticationFilter.class);

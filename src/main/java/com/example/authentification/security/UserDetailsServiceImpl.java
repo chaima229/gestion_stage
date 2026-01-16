@@ -1,5 +1,6 @@
 package com.example.authentification.security;
 
+import com.example.authentification.entity.Role;
 import com.example.authentification.repository.UserRepository;
 import org.springframework.lang.NonNull;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -27,7 +28,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         return org.springframework.security.core.userdetails.User
                 .withUsername(user.getEmail())
                 .password(user.getPassword())
-                .roles(user.getRole())
+                .roles(user.getRole() == null ? Role.ETUDIANT.name() : user.getRole().name())
                 .build();
     }
 }
