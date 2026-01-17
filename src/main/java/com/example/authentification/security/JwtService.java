@@ -21,17 +21,10 @@ public class JwtService {
         return Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
     }
 
-    public String generateToken(String username) {
-        return Jwts.builder()
-                .subject(username)
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + EXPIRATION))
-                .signWith(getSigningKey())
-                .compact();
-    }
 
-    public String generateToken(String username, String role) {
+    public String generateToken(Long id, String username, String role) {
         return Jwts.builder()
+                .claim("id", id)
                 .subject(username)
                 .claim("role", role)
                 .issuedAt(new Date())

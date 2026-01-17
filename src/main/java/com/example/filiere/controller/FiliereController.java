@@ -2,6 +2,7 @@ package com.example.filiere.controller;
 
 import com.example.filiere.service.FiliereService;
 import com.example.authentification.dto.FiliereDTO;
+import com.example.authentification.dto.ImportResultDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -49,6 +50,12 @@ public class FiliereController {
     public ResponseEntity<Void> deleteFiliere(@PathVariable Long id) {
         filiereService.deleteFiliere(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/import")
+    public ResponseEntity<ImportResultDTO> importFilieres(@Valid @RequestBody List<FiliereDTO> filieres) {
+        ImportResultDTO result = filiereService.importFilieres(filieres);
+        return ResponseEntity.ok(result);
     }
 }
 

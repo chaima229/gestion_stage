@@ -60,7 +60,7 @@ public class AuthService {
         userRepository.save(user);
         logger.info("User registered successfully with email: {}", request.getEmail());
 
-        String token = jwtService.generateToken(user.getEmail());
+        String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole().name());
         return new AuthResponse(token);
     }
 
@@ -88,7 +88,7 @@ public class AuthService {
                 });
 
         // Générer le token avec le rôle
-        String token = jwtService.generateToken(request.getEmail(), user.getRole().name());
+        String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole().name());
         return new AuthResponse(token);
     }
 }

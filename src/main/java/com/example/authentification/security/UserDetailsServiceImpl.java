@@ -25,10 +25,12 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         var user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
+        // Ajout du préfixe ROLE_ pour compatibilité Spring Security
+        String roleName = user.getRole() == null ? Role.ETUDIANT.name() : user.getRole().name();
         return org.springframework.security.core.userdetails.User
-                .withUsername(user.getEmail())
-                .password(user.getPassword())
-                .roles(user.getRole() == null ? Role.ETUDIANT.name() : user.getRole().name())
-                .build();
+            .withUsername(user.getEmail())
+            .password(user.getPassword())
+            .authorities("ROLE_" + roleName)
+            .build();
     }
 }

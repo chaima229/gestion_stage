@@ -28,7 +28,12 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = {"http://localhost:4200", "http://localhost:3000"})
+@CrossOrigin(
+    origins = {"http://localhost:4200", "http://localhost:3000"},
+    allowedHeaders = {"Authorization", "Content-Type", "X-Requested-With", "Accept"},
+    methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE, RequestMethod.OPTIONS},
+    allowCredentials = "true"
+)
 @RequiredArgsConstructor
 @Slf4j
 public class UserController {
@@ -133,9 +138,32 @@ public class UserController {
      * Mettre à jour un utilisateur
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ENSEIGNANT', 'ETUDIANT')")
     public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody UpdateUserRequest request) {
-        log.info("Mise à jour de l'utilisateur: {}", id);
+        log.info("[updateUser] Tentative de mise à jour de l'utilisateur id={} par {}", id, request.getEmail());
+
+        // Récupérer l'utilisateur connecté
+        org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        String currentEmail = authentication.getName();
+        boolean isAdmin = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        // Si non admin, vérifier que l'utilisateur ne modifie que son propre profil
+        if (!isAdmin) {
+            User currentUser = userRepository.findByEmail(currentEmail).orElse(null);
+            log.info("[updateUser] Utilisateur connecté: email={}, id={} | id demandé={}", currentEmail, (currentUser != null ? currentUser.getId() : null), id);
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", "SESSION_EXPIRED",
+                    "message", "Votre session a expiré. Veuillez vous reconnecter."
+                ));
+            }
+            if (!currentUser.getId().equals(id)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", "ACCESS_DENIED",
+                    "message", "Vous ne pouvez modifier que votre propre profil."
+                ));
+            }
+        }
 
         return userRepository.findById(id)
                 .map(user -> {
@@ -427,7 +455,24 @@ public class UserController {
     @PatchMapping("/{id}/profile")
     @PreAuthorize("hasAnyRole('ADMIN', 'ENSEIGNANT', 'ETUDIANT')")
     public ResponseEntity<?> updateProfile(@PathVariable Long id, @RequestBody Map<String, String> request) {
-        log.info("Mise à jour du profil de l'utilisateur: {}", id);
+        org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        String currentEmail = authentication.getName();
+        boolean isAdmin = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        log.info("Tentative de modification du profil: id={} par email={} (admin={})", id, currentEmail, isAdmin);
+
+        // Si non admin, vérifier que l'utilisateur ne modifie que son propre profil
+        if (!isAdmin) {
+            User currentUser = userRepository.findByEmail(currentEmail).orElse(null);
+            log.info("Vérification identité: email={} id={} userIdBase={}", currentEmail, id, currentUser != null ? currentUser.getId() : null);
+            if (currentUser == null || !currentUser.getId().equals(id)) {
+                log.warn("Accès refusé: email={} tente de modifier id={}", currentEmail, id);
+                // Message explicite pour le frontend
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", "SESSION_EXPIRED",
+                    "message", "Votre session n'est plus valide. Veuillez vous reconnecter."
+                ));
+            }
+        }
 
         return userRepository.findById(id)
                 .map(user -> {

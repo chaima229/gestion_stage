@@ -64,6 +64,50 @@ public class FiliereService {
         filiereRepository.deleteById(id);
     }
 
+    public com.example.authentification.dto.ImportResultDTO importFilieres(List<FiliereDTO> filiereDTOs) {
+        int success = 0;
+        int errors = 0;
+
+        System.out.println("=== DÉBUT IMPORT FILIÈRES ===");
+        System.out.println("Nombre de filières à importer: " + filiereDTOs.size());
+
+        for (FiliereDTO dto : filiereDTOs) {
+            try {
+                System.out.println("Traitement de: " + dto.getNom() + " - Niveau: " + dto.getNiveau());
+                
+                // Vérifier si une filière avec le même nom ET niveau existe déjà
+                boolean exists = filiereRepository.findByNomAndNiveau(dto.getNom(), dto.getNiveau()).isPresent();
+                
+                if (!exists) {
+                    Filiere filiere = Filiere.builder()
+                            .nom(dto.getNom())
+                            .niveau(dto.getNiveau())
+                            .description(dto.getDescription())
+                            .build();
+                    filiereRepository.save(filiere);
+                    success++;
+                    System.out.println("✓ Filière ajoutée: " + dto.getNom());
+                } else {
+                    // Filière existe déjà, compter comme erreur
+                    errors++;
+                    System.out.println("✗ Filière existe déjà (ignorée): " + dto.getNom());
+                }
+            } catch (Exception e) {
+                errors++;
+                System.out.println("✗ Erreur lors de l'import de: " + dto.getNom() + " - " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+
+        System.out.println("=== FIN IMPORT ===");
+        System.out.println("Succès: " + success + " | Erreurs: " + errors);
+
+        return com.example.authentification.dto.ImportResultDTO.builder()
+                .success(success)
+                .errors(errors)
+                .build();
+    }
+
     private FiliereDTO convertToDTO(Filiere filiere) {
         return FiliereDTO.builder()
                 .id(filiere.getId())

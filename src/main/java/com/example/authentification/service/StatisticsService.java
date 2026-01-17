@@ -3,6 +3,11 @@ package com.example.authentification.service;
 import com.example.authentification.dto.StatisticsDto;
 import com.example.authentification.entity.Role;
 import com.example.authentification.repository.UserRepository;
+import com.example.stage.repository.StageRepository;
+import com.example.filiere.repository.FiliereRepository;
+import com.example.stage.entity.Stage;
+import com.example.stage.entity.StageEtat;
+import com.example.filiere.entity.Filiere;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.*;
@@ -13,25 +18,65 @@ public class StatisticsService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private StageRepository stageRepository;
+
+    @Autowired
+    private FiliereRepository filiereRepository;
+
     /**
      * Récupère les statistiques du dashboard admin
      */
     public StatisticsDto getAdminDashboardStatistics() {
         try {
-            // Compter les utilisateurs par rôle
             long totalStudents = userRepository.countByRole(Role.ETUDIANT);
             long totalTeachers = userRepository.countByRole(Role.ENSEIGNANT);
+            long totalStages = stageRepository.count();
+            long totalFilieres = filiereRepository.count();
 
-            // Créer et retourner le DTO
+            // Répartition par état
+            Map<String, Long> stagesByState = new LinkedHashMap<>();
+            for (StageEtat etat : StageEtat.values()) {
+                stagesByState.put(etat.name(), stageRepository.countByEtat(etat));
+            }
+
+            // Répartition par filière
+            Map<String, Long> stagesByFiliere = new LinkedHashMap<>();
+            filiereRepository.findAll().forEach(f -> {
+                long count = stageRepository.findByFiliereId(f.getId()).size();
+                stagesByFiliere.put(f.getNom(), count);
+            });
+
+            // Top entreprises
+            Map<String, Long> topEntreprises = new LinkedHashMap<>();
+            stageRepository.findAll().stream()
+                .collect(java.util.stream.Collectors.groupingBy(Stage::getEntreprise, java.util.stream.Collectors.counting()))
+                .entrySet().stream()
+                .sorted((e1, e2) -> Long.compare(e2.getValue(), e1.getValue()))
+                .limit(5)
+                .forEach(e -> topEntreprises.put(e.getKey(), e.getValue()));
+
+            // Stages récents (les 3 derniers)
+            List<Stage> recentStages = stageRepository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
+            List<StatisticsDto.RecentStageDto> recentStageDtos = recentStages.stream().limit(3).map(s -> {
+                StatisticsDto.RecentStageDto dto = new StatisticsDto.RecentStageDto();
+                dto.setId(s.getId());
+                dto.setTitle(s.getSujet());
+                dto.setCompany(s.getEntreprise());
+                dto.setStatus(s.getEtat().name());
+                dto.setStudent(""); // À compléter si tu as la jointure avec l'étudiant
+                return dto;
+            }).toList();
+
             StatisticsDto result = new StatisticsDto();
             result.setTotalStudents(totalStudents);
-            result.setTotalStages(5L);
+            result.setTotalStages(totalStages);
             result.setTotalTeachers(totalTeachers);
-            result.setTotalFilieres(3L);
-            result.setStagesByState(getStagesByState());
-            result.setRecentStages(getRecentStages());
-            result.setStagesByFiliere(getStagesByFiliere());
-            result.setTopEntreprises(getTopEntreprises());
+            result.setTotalFilieres(totalFilieres);
+            result.setStagesByState(stagesByState);
+            result.setRecentStages(recentStageDtos);
+            result.setStagesByFiliere(stagesByFiliere);
+            result.setTopEntreprises(topEntreprises);
 
             return result;
         } catch (Exception e) {
@@ -39,63 +84,6 @@ public class StatisticsService {
             e.printStackTrace();
             return createEmptyStatistics();
         }
-    }
-
-    private Map<String, Long> getStagesByState() {
-        Map<String, Long> result = new HashMap<>();
-        result.put("BROUILLON", 2L);
-        result.put("EN_ATTENTE_VALIDATION", 1L);
-        result.put("VALIDE", 3L);
-        result.put("REFUSE", 1L);
-        return result;
-    }
-
-    private Map<String, Long> getStagesByFiliere() {
-        Map<String, Long> result = new HashMap<>();
-        result.put("Génie Informatique", 4L);
-        result.put("Sécurité SI", 2L);
-        result.put("Data Science", 1L);
-        return result;
-    }
-
-    private Map<String, Long> getTopEntreprises() {
-        Map<String, Long> result = new LinkedHashMap<>();
-        result.put("TechCorp", 3L);
-        result.put("CloudSecure", 2L);
-        result.put("DataSoft", 2L);
-        result.put("WebDev Solutions", 1L);
-        result.put("AppStudio", 1L);
-        return result;
-    }
-
-    private List<StatisticsDto.RecentStageDto> getRecentStages() {
-        List<StatisticsDto.RecentStageDto> result = new ArrayList<>();
-        
-        StatisticsDto.RecentStageDto stage1 = new StatisticsDto.RecentStageDto();
-        stage1.setId(1L);
-        stage1.setTitle("Développement Web");
-        stage1.setCompany("TechCorp");
-        stage1.setStatus("VALIDE");
-        stage1.setStudent("Sophie Bernard");
-        result.add(stage1);
-
-        StatisticsDto.RecentStageDto stage2 = new StatisticsDto.RecentStageDto();
-        stage2.setId(2L);
-        stage2.setTitle("Mobile App");
-        stage2.setCompany("AppStudio");
-        stage2.setStatus("EN_ATTENTE_VALIDATION");
-        stage2.setStudent("Jean Martin");
-        result.add(stage2);
-
-        StatisticsDto.RecentStageDto stage3 = new StatisticsDto.RecentStageDto();
-        stage3.setId(3L);
-        stage3.setTitle("API REST Node.js");
-        stage3.setCompany("WebDev Solutions");
-        stage3.setStatus("BROUILLON");
-        stage3.setStudent("Marie Dupont");
-        result.add(stage3);
-
-        return result;
     }
 
     private StatisticsDto createEmptyStatistics() {
